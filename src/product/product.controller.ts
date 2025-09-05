@@ -13,8 +13,10 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Query
+  Query,
+  StreamableFile
 } from '@nestjs/common';
+import * as ExcelJS from 'exceljs';
 import { CreateProductDto, EditProductDto } from './dto';
 import { ProductService } from './product.service';
 
@@ -33,12 +35,10 @@ export class ProductController {
     try {
       return await this.productService.getProducts({ search, sortBy, order });
     } catch (error) {
-      this.logger.error(`Failed to get products: ${error.message}`, error.stack);
-      
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
       }
-      
+
       throw new HttpException(
         `Failed to retrieve products: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -53,16 +53,32 @@ export class ProductController {
     @Query('order') order?: 'asc' | 'desc',
   ) {
     try {
-      return await this.productService.getExportProducts({ search, sortBy, order });
-    } catch (error) {
-      this.logger.error(`Failed to get products: ${error.message}`, error.stack);
-      
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
+      const { data: products } = await this.productService.getProducts({
+        search,
+        sortBy,
+        order,
+      });
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Products');
+
+      if (products.length > 0) {
+        worksheet.addRow(Object.keys(products[0]));
+        products.forEach((product) => {
+          worksheet.addRow(Object.values(product));
+        });
       }
-      
+
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      const uint8Array = new Uint8Array(buffer);
+
+      return new StreamableFile(uint8Array, {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        disposition: 'attachment; filename="products.xlsx"',
+      });
+    } catch (error) {
       throw new HttpException(
-        `Failed to retrieve products: ${error.message}`,
+        'Failed to export products',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -73,12 +89,10 @@ export class ProductController {
     try {
       return await this.productService.getProductById(id);
     } catch (error) {
-      this.logger.error(`Failed to get product by ID ${id}: ${error.message}`, error.stack);
-      
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
       }
-      
+
       throw new HttpException(
         `Failed to retrieve product: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -91,12 +105,10 @@ export class ProductController {
     try {
       return await this.productService.createProduct(payload);
     } catch (error) {
-      this.logger.error(`Failed to create product: ${error.message}`, error.stack);
-      
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
+
       throw new HttpException(
         `Failed to create product: ${error.message}`,
         HttpStatus.BAD_REQUEST,
@@ -113,12 +125,10 @@ export class ProductController {
 
       return await this.productService.createMultipleProducts(payload);
     } catch (error) {
-      this.logger.error(`Failed to create multiple products: ${error.message}`, error.stack);
-      
       if (error instanceof BadRequestException) {
         throw error;
       }
-      
+
       throw new HttpException(
         `Failed to create products: ${error.message}`,
         HttpStatus.BAD_REQUEST,
@@ -135,12 +145,13 @@ export class ProductController {
     try {
       return await this.productService.editProductById(id, payload);
     } catch (error) {
-      this.logger.error(`Failed to edit product ID ${id}: ${error.message}`, error.stack);
-      
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      
+
       throw new HttpException(
         `Failed to update product: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -154,12 +165,14 @@ export class ProductController {
     try {
       return await this.productService.deleteProductById(id);
     } catch (error) {
-      this.logger.error(`Failed to delete product ID ${id}: ${error.message}`, error.stack);
-      
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      
+
       throw new HttpException(
         `Failed to delete product: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
