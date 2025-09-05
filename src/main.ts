@@ -10,9 +10,13 @@ async function bootstrap() {
     }),
   );
   app.enableCors({
-    origin: 'http://localhost:3000, https://fesow.vercel.app',
-    credentials: true,
-  });
+  origin: [
+    'http://localhost:3000',
+    'https://fesow.vercel.app'
+  ],
+  credentials: true,
+});
+
 
   app.setGlobalPrefix('api/v1/locals');
 
