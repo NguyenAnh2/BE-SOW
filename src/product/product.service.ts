@@ -13,6 +13,8 @@ export class ProductService {
   async getProducts(filters: {
     search?: string;
     sortBy?: string;
+    minPrice?: number;
+    maxPrice?: number;
     order?: 'asc' | 'desc';
   }) {
     try {
@@ -24,6 +26,14 @@ export class ProductService {
           { name: { contains: search, mode: 'insensitive' } },
           { code: { contains: search, mode: 'insensitive' } },
         ];
+      }
+
+      if (filters.minPrice !== undefined) {
+        where.price = { ...where.price, gte: filters.minPrice };
+      }
+
+      if (filters.maxPrice !== undefined) {
+        where.price = { ...where.price, lte: filters.maxPrice };
       }
 
       const [products, total] = await Promise.all([

@@ -14,7 +14,7 @@ import {
   Post,
   Put,
   Query,
-  StreamableFile
+  StreamableFile,
 } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { CreateProductDto, EditProductDto } from './dto';
@@ -30,12 +30,23 @@ export class ProductController {
   async getProducts(
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: string,
+    @Query('minPrice', new ParseIntPipe({ optional: true })) minPrice?: number,
+    @Query('maxPrice', new ParseIntPipe({ optional: true })) maxPrice?: number,
     @Query('order') order?: 'asc' | 'desc',
   ) {
     try {
-      return await this.productService.getProducts({ search, sortBy, order });
+      return await this.productService.getProducts({
+        search,
+        sortBy,
+        minPrice,
+        maxPrice,
+        order,
+      });
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
 
@@ -89,7 +100,10 @@ export class ProductController {
     try {
       return await this.productService.getProductById(id);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
 
